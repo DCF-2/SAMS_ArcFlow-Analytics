@@ -86,6 +86,3 @@ Para acessar o manual do usuário, teoria detalhada e resultados visuais, acesse
 ---
 
 © **2025 DEXTER GPSERS & Davi Freitas.** Todos os direitos reservados.
-
-
-
