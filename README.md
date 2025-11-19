@@ -6,7 +6,7 @@
 ---
 
 ## 📖 Sobre o Projeto
-O **PGD (Projeto Gêmeos Digitais)** visa criar uma representação virtual fidedigna dos processos de soldagem industrial. Este repositório (`sPDG-Projeto_Gemio_Digital-INTM`) contém o núcleo de engenharia, algoritmos de processamento de sinais, códigos embarcados e protótipos de software.
+O **PGD (Projeto Gêmeos Digitais)** visa criar uma representação virtual fidedigna dos processos de soldagem industrial. Este repositório (`PDG-Projeto_Gemio_Digital-INTM`) contém o núcleo de engenharia, algoritmos de processamento de sinais, códigos embarcados e protótipos de software.
 
 O foco atual é o monitoramento acústico e a classificação de modos de transferência (Curto-Circuito, Spray, etc.) utilizando técnicas avançadas de DSP (Digital Signal Processing).
 
