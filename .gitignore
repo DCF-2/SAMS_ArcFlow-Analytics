@@ -1,0 +1,86 @@
+# =======================================================
+# PGD - Projeto Gêmeos Digitais (.gitignore)
+# =======================================================
+
+# --- Arquivos de Sistema Operacional ---
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Dados Pesados (NÃO COMMITAR) ---
+*.wav
+*.mp3
+*.raw
+data/raw/
+data/temp/
+
+# --- Imagens Geradas Automaticamente ---
+# (Descomente se quiser ignorar os resultados dos testes)
+# *_TEMPO.png
+# *_FFT.png
+# *_WAVELET.png
+
+# =======================================================
+# IDEs e Editores de Texto (Geral)
+# =======================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =======================================================
+# Octave / Matlab
+# =======================================================
+*.asv
+*.mat
+*.autosave
+octave-workspace
+
+# =======================================================
+# Python
+# =======================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.ipynb_checkpoints/
+
+# =======================================================
+# Java
+# =======================================================
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven
+
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+
+# Gradle
+
+.gradle/
+build/
+
+# Eclipse
+
+.classpath
+.project
+.settings/
+bin/
+
+# =======================================================
+# Arduino / Hardware
+# =======================================================
+*.hex
+*.elf
+*.bin
+*.eep
