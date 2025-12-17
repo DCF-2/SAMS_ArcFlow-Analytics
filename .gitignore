@@ -6,6 +6,7 @@
 .DS_Store
 Thumbs.db
 *.log
+*.zip
 
 # --- Dados Pesados (NÃO COMMITAR) ---
 *.wav
@@ -84,3 +85,8 @@ bin/
 *.elf
 *.bin
 *.eep
+
+# Pasta desnecessarias pro git
+.Audios-PGD/
+.Graficos/
+.Grafico-PGD/

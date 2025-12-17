@@ -1,0 +1,40 @@
+# ============================================================================
+# SISTEMA DE MONITORAMENTO DE SOLDAGEM - Dependências Python
+# ============================================================================
+# Instalação:
+#   pip install -r requirements.txt
+#
+# Ou instale manualmente:
+#   pip install customtkinter numpy scipy moviepy matplotlib
+# ============================================================================
+
+# GUI Moderna (Dark Mode)
+customtkinter>=5.2.0
+
+# Computação Científica e DSP
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Processamento de Vídeo
+moviepy>=1.0.3
+
+# Visualização de Dados
+matplotlib>=3.7.0
+
+# ============================================================================
+# DEPENDÊNCIAS INDIRETAS (instaladas automaticamente)
+# ============================================================================
+# Pillow          - Manipulação de imagens (usado pelo MoviePy)
+# imageio         - I/O de vídeo (usado pelo MoviePy)
+# decorator       - Utilitários Python
+# tqdm            - Barras de progresso
+# requests        - Downloads HTTP
+# proglog         - Logging para MoviePy
+
+# ============================================================================
+# NOTAS DE COMPATIBILIDADE
+# ============================================================================
+# - Python 3.10+ recomendado (testado em 3.10, 3.11, 3.12)
+# - Testado em Linux (Ubuntu 22.04), Windows 10/11, macOS 12+
+# - Para Raspberry Pi: Considere reduzir MAX_PIXELS em config.py
+# ============================================================================

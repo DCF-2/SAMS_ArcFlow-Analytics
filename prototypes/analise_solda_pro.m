@@ -7,13 +7,13 @@ clear; clc; close all;
 % 1. CONFIGURAÇÃO
 % =========================================================================
 % Nome do arquivo (pode ser longo agora!)
-nome_arquivo = './Audios - PGD/aud_2.wav';
+nome_arquivo = './Audios-PGD/PGD-INTM-AUDIOS/Ensaios-10.12/Ensaio-2/Ensaio-2.MP3';
 
 % Quer salvar as imagens automaticamente? (1 = Sim, 0 = Não)
 salvar_imagens = 1;
 
 fprintf('=================================================\n');
-fprintf('   ANALISADOR DE SOLDAGEM PRO - VERSAO FULL\n');
+fprintf('   ANALISADOR DE SOLDAGEM PRO - VERSAO PRO\n');
 fprintf('=================================================\n');
 
 % 1.1 Carregar Arquivo
@@ -112,16 +112,30 @@ title(['Wavelet Completa: ' nome_arquivo]);
 xlabel('Tempo (s)'); ylabel('Frequencia (Hz)');
 
 % =========================================================================
-% 4. SALVAMENTO AUTOMATICO
+% 4. SALVAMENTO AUTOMATICO (ORGANIZADO EM PASTA)
 % =========================================================================
 if salvar_imagens
-  fprintf('-> Salvando resultados em imagens PNG...\n');
-  nome_base = strrep(nome_arquivo, '.wav', ''); % Remove extensao
+  fprintf('-> Salvando resultados na pasta "Grafico-PGD"...\n');
 
-  print(1, [nome_base '_TEMPO.png'], '-dpng');
-  print(2, [nome_base '_FFT.png'], '-dpng');
-  print(3, [nome_base '_WAVELET.png'], '-dpng');
-  fprintf('   Sucesso! Imagens salvas na pasta atual.\n');
+  % 1. Definir o nome da pasta de destino
+  pasta_destino = 'Grafico-PGD';
+
+  % 2. Criar a pasta se ela não existir (Crucial!)
+  if ~exist(pasta_destino, 'dir')
+    mkdir(pasta_destino);
+  end
+
+  % 3. Limpar o nome do arquivo (Tira .wav, .mp3, etc, independente de maiuscula/minuscula)
+  % A função fileparts é mais segura que strrep pois pega só o nome, sem o caminho antigo
+  [~, nome_base, ~] = fileparts(nome_arquivo);
+
+  % 4. Salvar as imagens dentro da pasta
+  % O comando fullfile monta o caminho corretamente (Grafico-PGD/nome_TEMPO.png)
+  print(1, fullfile(pasta_destino, [nome_base '_TEMPO.png']), '-dpng');
+  print(2, fullfile(pasta_destino, [nome_base '_FFT.png']), '-dpng');
+  print(3, fullfile(pasta_destino, [nome_base '_WAVELET.png']), '-dpng');
+
+  fprintf('   Sucesso! Imagens salvas em: %s/\n', pasta_destino);
 end
 
 fprintf('--- Analise Finalizada ---\n');

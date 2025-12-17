@@ -4,7 +4,7 @@ clear; clc;
 
 % 1. Carregar o Arquivo de Áudio
 % TROQUE O NOME ABAIXO pelo nome do seu arquivo real
-nome_arquivo = './Audios - PGD/freq1200.wav';
+nome_arquivo = './Audios-PGD/PGD-INTM-AUDIOS/Ensaios-10.12/Ensaio-2/Ensaio-2.MP3';
 
 try
   [sinal, Fs] = audioread(nome_arquivo);
