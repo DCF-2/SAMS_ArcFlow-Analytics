@@ -24,6 +24,8 @@ from pathlib import Path
 from dsp_processor import DSPProcessor
 from worker_thread import WorkerThread
 
+from matplotlib.ticker import ScalarFormatter
+
 
 class WeldingMonitorApp(ctk.CTk):
     """
@@ -363,43 +365,52 @@ class WeldingMonitorApp(ctk.CTk):
         self.canvas_fft.draw()
     
     def _plot_wavelet(self, data):
-        """Plota espectrograma wavelet (Estilo Exato Octave: Freq no X, Tempo no Y)"""
+        """Plota espectrograma wavelet (Modo RAW - Idêntico ao Octave imagesc)"""
         self.ax_wavelet.clear()
         
-        # Calcula magnitude em dB e limita entre -60 e 0 (Contraste alto)
+        # 1. Normalização Relativa (Exatamente como no Octave)
         magnitude = np.abs(data['coefs'])
-        magnitude_db = 20 * np.log10(magnitude + 1e-12)
+        max_val = np.max(magnitude)
+        if max_val == 0: max_val = 1e-12
+            
+        magnitude_norm = magnitude / max_val
+        magnitude_db = 20 * np.log10(magnitude_norm + 1e-12)
         
-        # --- AJUSTE CRÍTICO DE ORIENTAÇÃO ---
-        # No Octave: Eixo X = Frequência, Eixo Y = Tempo
-        # Para fazer isso, passamos (freqs, t, magnitude.Transposta)
-        # O .T inverte a matriz para alinhar com os eixos trocados
-        im = self.ax_wavelet.pcolormesh(
-            data['freqs'],      # X: Frequência (0 a 22k)
-            data['t'],          # Y: Tempo (0 a 45s)
-            magnitude_db.T,     # Z: Matriz Transposta
-            shading='gouraud', 
-            cmap='jet', 
-            vmin=-50, vmax=0    # Contraste idêntico ao Octave
+        # 2. Configura a extensão dos eixos
+        extent = [
+            data['freqs'][0], data['freqs'][-1], # Eixo X: Freq
+            data['t'][0], data['t'][-1]          # Eixo Y: Tempo
+        ]
+        
+        # 3. PLOTAGEM (O Segredo do Visual)
+        # interpolation='nearest': Isso força o Python a desenhar os pixels "quadrados"
+        # e nítidos, exatamente como o 'imagesc' padrão do Octave.
+        # Removemos o 'bilinear' que estava deixando a imagem borrada.
+        im = self.ax_wavelet.imshow(
+            magnitude_db.T,
+            aspect='auto',
+            origin='lower',
+            cmap='jet',
+            extent=extent,
+            vmin=-50, vmax=0,       # Contraste travado igual ao Octave
+            interpolation='nearest' # <--- DEIXA NÍTIDO IGUAL AO OCTAVE
         )
         
-        # Configuração dos eixos
+        # 4. Configuração dos Eixos
         self.ax_wavelet.set_xlabel('Frequencia (Hz)', fontsize=11, fontweight='bold')
         self.ax_wavelet.set_ylabel('Tempo (s)', fontsize=11, fontweight='bold')
         self.ax_wavelet.set_title('3. Spectroid: ' + os.path.basename(self.audio_path or "Audio"), 
                                   fontsize=12, fontweight='bold')
         
-        # Remove escala Log (Usa Linear como no Octave)
-        # self.ax_wavelet.set_yscale('log') <-- REMOVIDO
-        
-        # Força limites exatos
-        self.ax_wavelet.set_xlim([0, np.max(data['freqs'])])
-        self.ax_wavelet.set_ylim([0, np.max(data['t'])])
+        # 5. Formatação (Números normais no eixo X)
+        from matplotlib.ticker import ScalarFormatter
+        self.ax_wavelet.xaxis.set_major_formatter(ScalarFormatter())
+        self.ax_wavelet.ticklabel_format(style='plain', axis='x')
 
-        # Adiciona colorbar Limpa
+        # 6. Colorbar
         cbar = self.fig_wavelet.colorbar(im, ax=self.ax_wavelet)
         cbar.set_label('dB', fontsize=10, rotation=0, labelpad=-10, y=1.05)
         
-        # Ajusta layout
+        # 7. Ajuste final
         self.fig_wavelet.tight_layout()
         self.canvas_wavelet.draw()
