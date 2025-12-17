@@ -237,20 +237,16 @@ class WeldingMonitorApp(ctk.CTk):
         # 3. Wavelet CWT
         print("[INFO] Calculando CWT (Morlet) - isso pode demorar...")
         
-        # IMPORTANTE: Carregando configurações do config.py
-        from config import DSP_CONFIG
+        # --- CORREÇÃO: FORÇAR ESCALA LINEAR IGUAL AO OCTAVE ---
+        # Frequência mínima e máxima (Nyquist)
+        f_min = 100
+        f_max = sample_rate / 2  # Aprox 22050 Hz
+        num_escalas = 150        # Resolução vertical do Octave
         
-        # Lógica para replicar exatamente o visual do Octave (Linear vs Log)
-        if DSP_CONFIG.get('SCALE_TYPE') == 'linear':
-            freqs = np.linspace(DSP_CONFIG['FREQ_MIN'], DSP_CONFIG['FREQ_MAX'], DSP_CONFIG['NUM_SCALES'])
-        else:
-            # Fallback para logarítmico se preferir no futuro
-            freqs = np.logspace(np.log10(DSP_CONFIG['FREQ_MIN']), np.log10(DSP_CONFIG['FREQ_MAX']), DSP_CONFIG['NUM_SCALES'])
+        # Gera vetor LINEAR (np.linspace) em vez de Logarítmico
+        freqs = np.linspace(f_min, f_max, num_escalas)
             
         coefs, t_cwt = DSPProcessor.cwt_morlet_otimizada(audio_data, sample_rate, freqs)
-        
-        # Inverter as frequências para o plot ficar Agudo em Cima / Grave em Baixo (padrão Spectrograma)
-        # O pcolormesh do matplotlib desenha de baixo para cima, então ok.
         
         results['wavelet'] = {'coefs': coefs, 't': t_cwt, 'freqs': freqs}
         
@@ -367,34 +363,43 @@ class WeldingMonitorApp(ctk.CTk):
         self.canvas_fft.draw()
     
     def _plot_wavelet(self, data):
-        """Plota espectrograma wavelet"""
+        """Plota espectrograma wavelet (Estilo Exato Octave: Freq no X, Tempo no Y)"""
         self.ax_wavelet.clear()
         
-        # Calcula magnitude em dB
+        # Calcula magnitude em dB e limita entre -60 e 0 (Contraste alto)
         magnitude = np.abs(data['coefs'])
         magnitude_db = 20 * np.log10(magnitude + 1e-12)
         
-        # Plota espectrograma
+        # --- AJUSTE CRÍTICO DE ORIENTAÇÃO ---
+        # No Octave: Eixo X = Frequência, Eixo Y = Tempo
+        # Para fazer isso, passamos (freqs, t, magnitude.Transposta)
+        # O .T inverte a matriz para alinhar com os eixos trocados
         im = self.ax_wavelet.pcolormesh(
-            data['t'], data['freqs'], magnitude_db,
-            shading='auto', cmap='jet', 
-            vmin=np.percentile(magnitude_db, 5),
-            vmax=np.percentile(magnitude_db, 95)
+            data['freqs'],      # X: Frequência (0 a 22k)
+            data['t'],          # Y: Tempo (0 a 45s)
+            magnitude_db.T,     # Z: Matriz Transposta
+            shading='gouraud', 
+            cmap='jet', 
+            vmin=-50, vmax=0    # Contraste idêntico ao Octave
         )
         
-        self.ax_wavelet.set_xlabel('Tempo (s)', color='white', fontsize=11)
-        self.ax_wavelet.set_ylabel('Frequência (Hz)', color='white', fontsize=11)
-        self.ax_wavelet.set_title('Espectrograma Wavelet - Transformada de Morlet (Otimizada)', 
-                                  color='white', fontsize=13, fontweight='bold')
-        self.ax_wavelet.set_yscale('log')
-        self.ax_wavelet.tick_params(colors='white')
-        self.ax_wavelet.set_facecolor('#1e1e1e')
+        # Configuração dos eixos
+        self.ax_wavelet.set_xlabel('Frequencia (Hz)', fontsize=11, fontweight='bold')
+        self.ax_wavelet.set_ylabel('Tempo (s)', fontsize=11, fontweight='bold')
+        self.ax_wavelet.set_title('3. Spectroid: ' + os.path.basename(self.audio_path or "Audio"), 
+                                  fontsize=12, fontweight='bold')
         
-        # Adiciona colorbar
+        # Remove escala Log (Usa Linear como no Octave)
+        # self.ax_wavelet.set_yscale('log') <-- REMOVIDO
+        
+        # Força limites exatos
+        self.ax_wavelet.set_xlim([0, np.max(data['freqs'])])
+        self.ax_wavelet.set_ylim([0, np.max(data['t'])])
+
+        # Adiciona colorbar Limpa
         cbar = self.fig_wavelet.colorbar(im, ax=self.ax_wavelet)
-        cbar.set_label('Magnitude (dB)', color='white', fontsize=10)
-        cbar.ax.yaxis.set_tick_params(color='white')
-        plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+        cbar.set_label('dB', fontsize=10, rotation=0, labelpad=-10, y=1.05)
         
+        # Ajusta layout
         self.fig_wavelet.tight_layout()
         self.canvas_wavelet.draw()
