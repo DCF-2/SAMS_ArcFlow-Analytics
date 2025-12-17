@@ -2,10 +2,7 @@
 welding_monitor_app.py
 ======================
 Aplicação Principal de Monitoramento de Soldagem
-Interface Gráfica com CustomTkinter + Matplotlib
-
-Autor: Sistema de Monitoramento de Soldagem
-Versão: 2.0
+Versão: 3.0 (Professional Dashboard UI)
 """
 
 import customtkinter as ctk
@@ -13,404 +10,396 @@ from tkinter import filedialog, messagebox
 import numpy as np
 from scipy.io import wavfile
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+from matplotlib.ticker import ScalarFormatter
 import os
+import datetime
 import traceback
-from moviepy.editor import VideoFileClip
 from pathlib import Path
 
-# Importa módulos do projeto
+# Ajuste de compatibilidade MoviePy
+try:
+    from moviepy.editor import VideoFileClip
+except ImportError:
+    try:
+        from moviepy import VideoFileClip
+    except ImportError:
+        print("[SISTEMA] Aviso: Biblioteca MoviePy não encontrada.")
+
 from dsp_processor import DSPProcessor
 from worker_thread import WorkerThread
 
-from matplotlib.ticker import ScalarFormatter
-
-
 class WeldingMonitorApp(ctk.CTk):
-    """
-    Aplicação Principal de Monitoramento de Soldagem
-    
-    Arquitetura:
-    - GUI: CustomTkinter (tema dark moderno)
-    - Plots: Matplotlib integrado via FigureCanvasTkAgg
-    - Threading: WorkerThread para manter UI responsiva
-    - DSP: Algoritmos otimizados para Raspberry Pi
-    """
-    
     def __init__(self):
         super().__init__()
         
-        # ===== Configuração da Janela =====
-        self.title("Sistema de Monitoramento de Soldagem - Análise Espectral v2.0")
-        self.geometry("1400x900")
+        # ===== Configuração da Janela Principal =====
+        self.title("SAMS - ArcFlow Analytics v3.0")
+        self.geometry("1600x900")
+        self.minsize(1200, 800)
         
-        # Configuração do tema
+        # Tema
         ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("dark-blue")
         
-        # ===== Variáveis de Estado =====
+        # Variáveis de Estado
         self.audio_data = None
         self.sample_rate = None
         self.video_path = None
         self.audio_path = None
         self.processing = False
+        self.plots_ready = False
         
-        # ===== Criar Interface =====
-        self._create_widgets()
+        # Layout Grid Principal (2 Colunas: Sidebar | Main)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
         
-        print("✓ Aplicação inicializada com sucesso!")
+        self._create_sidebar()
+        self._create_main_area()
         
-    def _create_widgets(self):
-        """Constrói toda a interface gráfica"""
+        self.log("Sistema ArcFlow Analytics inicializado.")
+        self.log("Aguardando entrada de dados...")
         
-        # ===== PAINEL SUPERIOR: Controles =====
-        self.control_frame = ctk.CTkFrame(self, height=100)
-        self.control_frame.pack(side="top", fill="x", padx=10, pady=10)
+    def _create_sidebar(self):
+        """Cria a barra lateral de controles e logs"""
+        self.sidebar = ctk.CTkFrame(self, width=300, corner_radius=0)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar.grid_rowconfigure(5, weight=1) # Empurra o log para baixo
         
-        # Botão carregar vídeo
+        # 1. Cabeçalho
+        self.lbl_logo = ctk.CTkLabel(
+            self.sidebar, text="ArcFlow\nAnalytics", 
+            font=ctk.CTkFont(size=24, weight="bold")
+        )
+        self.lbl_logo.grid(row=0, column=0, padx=20, pady=(20, 10))
+        
+        self.lbl_version = ctk.CTkLabel(self.sidebar, text="v3.0 Professional", text_color="gray")
+        self.lbl_version.grid(row=1, column=0, padx=20, pady=(0, 20))
+        
+        # 2. Controles Principais
         self.btn_load = ctk.CTkButton(
-            self.control_frame,
-            text="📁 Carregar Vídeo MP4",
-            command=self.load_video,
-            width=200,
-            height=40,
-            font=("Arial", 14, "bold")
+            self.sidebar, text="📁 CARREGAR VÍDEO", command=self.load_video,
+            height=50, font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#1f6aa5", hover_color="#144870"
         )
-        self.btn_load.pack(side="left", padx=10, pady=20)
+        self.btn_load.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
         
-        # Label de status
-        self.status_label = ctk.CTkLabel(
-            self.control_frame,
-            text="Aguardando arquivo...",
-            font=("Arial", 12)
+        self.btn_export = ctk.CTkButton(
+            self.sidebar, text="💾 EXPORTAR RELATÓRIO", command=self.export_report,
+            height=50, font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#2da44e", hover_color="#2c974b", # Verde GitHub
+            state="disabled"
         )
-        self.status_label.pack(side="left", padx=20)
+        self.btn_export.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
         
-        # Barra de progresso
-        self.progress = ctk.CTkProgressBar(self.control_frame, width=300)
-        self.progress.pack(side="left", padx=10)
-        self.progress.set(0)
+        # 3. Separador
+        self.separator = ctk.CTkFrame(self.sidebar, height=2, fg_color="gray30")
+        self.separator.grid(row=4, column=0, padx=20, pady=20, sticky="ew")
         
-        # ===== PAINEL DE ABAS: Visualizações =====
-        self.tabview = ctk.CTkTabview(self)
-        self.tabview.pack(side="top", fill="both", expand=True, padx=10, pady=10)
+        # 4. Console de Logs (O "Print" na Interface)
+        self.log_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        self.log_frame.grid(row=5, column=0, padx=20, pady=10, sticky="nsew")
+        self.log_frame.grid_rowconfigure(1, weight=1)
+        self.log_frame.grid_columnconfigure(0, weight=1)
         
-        # Criar abas
-        self.tab_time = self.tabview.add("🔊 Sinal no Tempo")
-        self.tab_fft = self.tabview.add("📊 FFT/PSD (Welch)")
-        self.tab_wavelet = self.tabview.add("🌊 Wavelet (Morlet)")
+        ctk.CTkLabel(self.log_frame, text="LOG DE SISTEMA:", anchor="w", font=("Consolas", 12, "bold")).grid(row=0, column=0, sticky="w")
         
-        # Inicializar plots
+        self.console = ctk.CTkTextbox(
+            self.log_frame, font=("Consolas", 11), 
+            text_color="#00ff00", fg_color="#101010", # Visual Terminal Hacker
+            activate_scrollbars=True
+        )
+        self.console.grid(row=1, column=0, sticky="nsew", pady=5)
+        self.console.configure(state="disabled")
+        
+        # 5. Barra de Progresso (Rodapé)
+        self.progress_bar = ctk.CTkProgressBar(self.sidebar)
+        self.progress_bar.grid(row=6, column=0, padx=20, pady=(10, 20), sticky="ew")
+        self.progress_bar.set(0)
+
+    def _create_main_area(self):
+        """Cria a área principal com as abas e gráficos"""
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        
+        # Abas
+        self.tabview = ctk.CTkTabview(self.main_frame)
+        self.tabview.pack(fill="both", expand=True)
+        
+        self.tab_time = self.tabview.add("🔊 SINAL NO TEMPO")
+        self.tab_fft = self.tabview.add("📊 FFT / PSD")
+        self.tab_wavelet = self.tabview.add("🌊 SPECTROID WAVELET")
+        
+        # Inicializa os plots
         self._setup_plot_tabs()
+
+    def log(self, message):
+        """Adiciona mensagem ao console da interface"""
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        full_msg = f"[{timestamp}] {message}\n"
         
+        self.console.configure(state="normal")
+        self.console.insert("end", full_msg)
+        self.console.see("end") # Auto-scroll
+        self.console.configure(state="disabled")
+        print(full_msg.strip()) # Também imprime no terminal do Python por segurança
+
     def _setup_plot_tabs(self):
-        """Configura os canvas de matplotlib em cada aba"""
+        """Configura os gráficos com Toolbar Integrada"""
         
-        # ===== ABA 1: Sinal no Tempo =====
-        self.fig_time = Figure(figsize=(12, 6), dpi=100, facecolor='#2b2b2b')
+        def create_plot_area(parent_tab):
+            # Frame container
+            frame = ctk.CTkFrame(parent_tab, fg_color="transparent")
+            frame.pack(fill="both", expand=True)
+            
+            # Figura Matplotlib Dark Mode
+            fig = Figure(figsize=(10, 6), dpi=100, facecolor='#2b2b2b')
+            
+            # Canvas
+            canvas = FigureCanvasTkAgg(fig, master=frame)
+            canvas.get_tk_widget().pack(side="top", fill="both", expand=True)
+            
+            # Toolbar customizada
+            toolbar = NavigationToolbar2Tk(canvas, frame, pack_toolbar=False)
+            toolbar.config(background='#2b2b2b')
+            toolbar._message_label.config(background='#2b2b2b', foreground='white')
+            for button in toolbar.winfo_children():
+                button.config(background='#2b2b2b')
+            toolbar.update()
+            toolbar.pack(side="bottom", fill="x")
+            
+            return fig, canvas, toolbar
+
+        self.fig_time, self.canvas_time, self.tb_time = create_plot_area(self.tab_time)
         self.ax_time = self.fig_time.add_subplot(111)
-        self.ax_time.set_facecolor('#1e1e1e')
-        self.ax_time.set_xlabel('Tempo (s)', color='white')
-        self.ax_time.set_ylabel('Amplitude', color='white')
-        self.ax_time.set_title('Sinal de Áudio no Domínio do Tempo', color='white')
-        self.ax_time.tick_params(colors='white')
-        self.ax_time.grid(True, alpha=0.3)
-        self.canvas_time = FigureCanvasTkAgg(self.fig_time, master=self.tab_time)
-        self.canvas_time.get_tk_widget().pack(fill="both", expand=True)
         
-        # ===== ABA 2: FFT/PSD =====
-        self.fig_fft = Figure(figsize=(12, 6), dpi=100, facecolor='#2b2b2b')
+        self.fig_fft, self.canvas_fft, self.tb_fft = create_plot_area(self.tab_fft)
         self.ax_fft = self.fig_fft.add_subplot(111)
-        self.ax_fft.set_facecolor('#1e1e1e')
-        self.ax_fft.set_xlabel('Frequência (Hz)', color='white')
-        self.ax_fft.set_ylabel('PSD (dB/Hz)', color='white')
-        self.ax_fft.set_title('Densidade Espectral de Potência - Método de Welch', color='white')
-        self.ax_fft.tick_params(colors='white')
-        self.ax_fft.grid(True, alpha=0.3)
-        self.canvas_fft = FigureCanvasTkAgg(self.fig_fft, master=self.tab_fft)
-        self.canvas_fft.get_tk_widget().pack(fill="both", expand=True)
         
-        # ===== ABA 3: Wavelet =====
-        self.fig_wavelet = Figure(figsize=(12, 6), dpi=100, facecolor='#2b2b2b')
+        self.fig_wavelet, self.canvas_wavelet, self.tb_wavelet = create_plot_area(self.tab_wavelet)
         self.ax_wavelet = self.fig_wavelet.add_subplot(111)
-        self.ax_wavelet.set_facecolor('#1e1e1e')
-        self.ax_wavelet.set_xlabel('Tempo (s)', color='white')
-        self.ax_wavelet.set_ylabel('Frequência (Hz)', color='white')
-        self.ax_wavelet.set_title('Espectrograma Wavelet - Morlet CWT', color='white')
-        self.ax_wavelet.tick_params(colors='white')
-        self.canvas_wavelet = FigureCanvasTkAgg(self.fig_wavelet, master=self.tab_wavelet)
-        self.canvas_wavelet.get_tk_widget().pack(fill="both", expand=True)
-        
+
     # =========================================================================
-    # MÉTODOS DE CONTROLE E CARREGAMENTO
+    # LÓGICA DE NEGÓCIO (Carregar e Exportar)
     # =========================================================================
     
     def load_video(self):
-        """Carrega vídeo MP4 e inicia o pipeline de processamento"""
         if self.processing:
-            messagebox.showwarning("Aviso", "Aguarde o processamento atual terminar!")
+            messagebox.showwarning("Ocupado", "Aguarde o processamento atual terminar!")
             return
             
         filepath = filedialog.askopenfilename(
             title="Selecione o vídeo de soldagem",
-            filetypes=[("Vídeos MP4", "*.mp4"), ("Todos os arquivos", "*.*")]
+            filetypes=[("Vídeos MP4", "*.mp4"), ("Todos os Arquivos", "*.*")]
         )
         
-        if not filepath:
-            return
+        if not filepath: return
         
         self.video_path = filepath
         self.processing = True
-        self.btn_load.configure(state="disabled")
-        self.status_label.configure(text="Extraindo áudio do vídeo...")
-        self.progress.set(0.2)
+        self.plots_ready = False
         
-        # Inicia thread de processamento
-        worker = WorkerThread(
-            self._on_extraction_complete,
-            self._extract_audio,
-            filepath
-        )
+        # UI Updates
+        self.btn_load.configure(state="disabled")
+        self.btn_export.configure(state="disabled")
+        self.progress_bar.set(0.1)
+        self.log(f"Carregando: {os.path.basename(filepath)}")
+        self.log("Iniciando extração de áudio...")
+        
+        worker = WorkerThread(self._on_extraction_complete, self._extract_audio, filepath)
         worker.start()
-    
+
+    def export_report(self):
+        """Exporta relatório perguntando onde salvar"""
+        if not self.plots_ready: return
+
+        # Pergunta ONDE salvar (NOVO RECURSO)
+        target_dir = filedialog.askdirectory(title="Selecione a Pasta para Salvar o Relatório")
+        
+        if not target_dir:
+            self.log("Exportação cancelada pelo usuário.")
+            return
+
+        try:
+            nome_base = Path(self.audio_path).stem.replace("_audio", "")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            folder_name = f"Relatorio_{nome_base}_{timestamp}"
+            save_path = os.path.join(target_dir, folder_name)
+            
+            os.makedirs(save_path, exist_ok=True)
+            self.log(f"Criando pasta: {folder_name}")
+            
+            # Salva Imagens
+            self.fig_time.savefig(os.path.join(save_path, "1_TEMPO.png"), dpi=150, facecolor='#2b2b2b')
+            self.fig_fft.savefig(os.path.join(save_path, "2_PSD.png"), dpi=150, facecolor='#2b2b2b')
+            self.fig_wavelet.savefig(os.path.join(save_path, "3_WAVELET.png"), dpi=150, facecolor='#2b2b2b')
+            
+            self.log("✅ Exportação concluída com sucesso!")
+            messagebox.showinfo("Sucesso", f"Relatório salvo em:\n{save_path}")
+            
+        except Exception as e:
+            self.log(f"❌ Erro ao exportar: {e}")
+            messagebox.showerror("Erro", str(e))
+
     # =========================================================================
-    # PIPELINE DE PROCESSAMENTO (Executa em WorkerThread)
+    # WORKERS E CALLBACKS
     # =========================================================================
     
     def _extract_audio(self, video_path):
-        """
-        Extrai áudio do vídeo MP4 usando MoviePy
-        
-        Returns:
-            dict: {audio_path, sample_rate, audio_data}
-        """
-        print(f"[INFO] Iniciando extração de áudio: {video_path}")
+        # Lógica de extração segura
         video = VideoFileClip(video_path)
-        
-        # Define caminho do áudio
         audio_filename = Path(video_path).stem + "_audio.wav"
         audio_path = os.path.join(os.path.dirname(video_path), audio_filename)
         
-        # Extrai e salva áudio
-        print(f"[INFO] Salvando áudio em: {audio_path}")
         video.audio.write_audiofile(audio_path, verbose=False, logger=None)
         video.close()
         
-        # Carrega áudio como numpy array
         sample_rate, audio_data = wavfile.read(audio_path)
-        
-        # Converte estéreo -> mono (se necessário)
-        if len(audio_data.shape) > 1:
-            print(f"[INFO] Convertendo estéreo -> mono")
-            audio_data = np.mean(audio_data, axis=1)
-        
-        # Normaliza para [-1, 1]
+        if len(audio_data.shape) > 1: 
+            audio_data = np.mean(audio_data, axis=1) # Mono
+            
         audio_data = audio_data.astype(np.float64)
-        audio_data = audio_data / np.max(np.abs(audio_data))
+        audio_data = audio_data / (np.max(np.abs(audio_data)) + 1e-9) # Normaliza
         
-        print(f"[INFO] Áudio carregado: {len(audio_data)/sample_rate:.2f}s @ {sample_rate}Hz")
-        
-        return {
-            'audio_path': audio_path,
-            'sample_rate': sample_rate,
-            'audio_data': audio_data
-        }
+        return {'audio_path': audio_path, 'sample_rate': sample_rate, 'audio_data': audio_data}
     
-    def _run_all_analysis(self, audio_data, sample_rate):
-        """
-        Executa todas as análises DSP
-        
-        Returns:
-            dict: {time, psd, wavelet} com resultados
-        """
+    def _run_dsp(self, audio_data, sample_rate):
         results = {}
+        # 1. Tempo
+        results['time'] = {'t': np.arange(len(audio_data))/sample_rate, 'signal': audio_data}
         
-        # 1. Sinal no tempo
-        print("[INFO] Preparando visualização temporal...")
-        t = np.arange(len(audio_data)) / sample_rate
-        results['time'] = {'t': t, 'signal': audio_data}
-        
-        # 2. PSD Welch
-        print("[INFO] Calculando PSD (Welch)...")
+        # 2. PSD
         f, Pxx = DSPProcessor.calcular_psd_welch(audio_data, sample_rate)
         results['psd'] = {'f': f, 'Pxx': Pxx}
         
-        # 3. Wavelet CWT
-        print("[INFO] Calculando CWT (Morlet) - isso pode demorar...")
-        
-        # --- CORREÇÃO: FORÇAR ESCALA LINEAR IGUAL AO OCTAVE ---
-        # Frequência mínima e máxima (Nyquist)
-        f_min = 100
-        f_max = sample_rate / 2  # Aprox 22050 Hz
-        num_escalas = 150        # Resolução vertical do Octave
-        
-        # Gera vetor LINEAR (np.linspace) em vez de Logarítmico
-        freqs = np.linspace(f_min, f_max, num_escalas)
-            
+        # 3. Wavelet
+        freqs = np.linspace(100, sample_rate/2, 150)
         coefs, t_cwt = DSPProcessor.cwt_morlet_otimizada(audio_data, sample_rate, freqs)
-        
         results['wavelet'] = {'coefs': coefs, 't': t_cwt, 'freqs': freqs}
         
-        print("[INFO] Análises concluídas!")
         return results
-    
-    # =========================================================================
-    # CALLBACKS (Thread-Safe com after())
-    # =========================================================================
-    
+
     def _on_extraction_complete(self, result, error):
-        """Callback após extração do áudio"""
         if error:
-            self.after(0, self._show_error, "Erro na Extração", error)
+            self.log(f"❌ Erro na extração: {error}")
+            self._reset_ui()
             return
-        
-        # Armazena dados
+            
         self.audio_path = result['audio_path']
         self.sample_rate = result['sample_rate']
         self.audio_data = result['audio_data']
         
-        # Atualiza UI
-        self.status_label.configure(text="⏳ Processando análises DSP...")
-        self.progress.set(0.5)
+        self.log("Áudio extraído com sucesso.")
+        self.log(f"Amostras: {len(self.audio_data)} | Taxa: {self.sample_rate}Hz")
+        self.log("Iniciando cálculos DSP (FFT + Wavelet)...")
+        self.progress_bar.set(0.4)
         
-        # Inicia análises DSP em nova thread
-        worker = WorkerThread(
-            self._on_analysis_complete,
-            self._run_all_analysis,
-            self.audio_data,
-            self.sample_rate
-        )
+        worker = WorkerThread(self._on_dsp_complete, self._run_dsp, self.audio_data, self.sample_rate)
         worker.start()
-    
-    def _on_analysis_complete(self, results, error):
-        """Callback após análises DSP"""
-        if error:
-            self.after(0, self._show_error, "Erro no Processamento", error)
-            return
         
-        # Agenda atualização dos plots na thread principal
-        self.after(0, self._update_all_plots, results)
-    
-    def _show_error(self, title, message):
-        """Mostra erro e reseta estado (thread-safe)"""
-        messagebox.showerror(title, f"{message}")
-        self.status_label.configure(text=f"❌ {title}")
-        self.progress.set(0)
-        self.btn_load.configure(state="normal")
-        self.processing = False
-    
-    def _update_all_plots(self, results):
-        """Atualiza todos os plots (deve ser chamado na thread principal)"""
-        try:
-            print("[INFO] Atualizando visualizações...")
+    def _on_dsp_complete(self, results, error):
+        if error:
+            self.log(f"❌ Erro DSP: {error}")
+            self._reset_ui()
+            return
             
-            self._plot_time_domain(results['time'])
-            self.progress.set(0.7)
+        self.log("Cálculos matemáticos concluídos.")
+        self.log("Renderizando gráficos...")
+        self.after(0, self._update_plots, results)
+
+    def _update_plots(self, results):
+        try:
+            self._plot_time(results['time'])
+            self.progress_bar.set(0.7)
             
             self._plot_psd(results['psd'])
-            self.progress.set(0.85)
+            self.progress_bar.set(0.85)
             
             self._plot_wavelet(results['wavelet'])
-            self.progress.set(1.0)
+            self.progress_bar.set(1.0)
             
-            # Status final
-            duracao = len(self.audio_data) / self.sample_rate
-            self.status_label.configure(
-                text=f"✅ Análise completa! Duração: {duracao:.2f}s @ {self.sample_rate}Hz"
-            )
-            print("[INFO] Processo concluído com sucesso!")
+            self.log("✅ ANÁLISE COMPLETA!")
+            self.plots_ready = True
+            self.btn_export.configure(state="normal")
             
         except Exception as e:
-            error_msg = f"Erro ao plotar: {str(e)}\n{traceback.format_exc()}"
-            print(f"[ERRO] {error_msg}")
-            messagebox.showerror("Erro", error_msg)
-        
+            self.log(f"❌ Erro Plotagem: {e}")
         finally:
             self.btn_load.configure(state="normal")
             self.processing = False
-    
+
+    def _reset_ui(self):
+        self.processing = False
+        self.btn_load.configure(state="normal")
+        self.progress_bar.set(0)
+
     # =========================================================================
-    # MÉTODOS DE PLOTAGEM
+    # PLOTAGEM (ESTILO DARK + OCTAVE)
     # =========================================================================
     
-    def _plot_time_domain(self, data):
-        """Plota sinal no domínio do tempo"""
+    def _dark_style(self, ax, title, xlabel, ylabel):
+        ax.set_facecolor('#1e1e1e')
+        ax.tick_params(colors='white', labelsize=9)
+        ax.xaxis.label.set_color('white')
+        ax.yaxis.label.set_color('white')
+        ax.title.set_color('white')
+        ax.title.set_weight('bold')
+        for spine in ax.spines.values(): spine.set_edgecolor('#555555')
+        ax.grid(True, alpha=0.2, color='white', linestyle='--')
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
+    def _plot_time(self, data):
         self.ax_time.clear()
-        self.ax_time.plot(data['t'], data['signal'], color='#00d9ff', linewidth=0.5)
-        self.ax_time.set_xlabel('Tempo (s)', color='white', fontsize=11)
-        self.ax_time.set_ylabel('Amplitude Normalizada', color='white', fontsize=11)
-        self.ax_time.set_title('Sinal de Áudio no Domínio do Tempo', 
-                                color='white', fontsize=13, fontweight='bold')
-        self.ax_time.tick_params(colors='white')
-        self.ax_time.grid(True, alpha=0.3, color='gray', linestyle='--')
-        self.ax_time.set_facecolor('#1e1e1e')
+        self.ax_time.plot(data['t'], data['signal'], color='#00ffff', linewidth=0.5)
+        self._dark_style(self.ax_time, 'Domínio do Tempo', 'Tempo (s)', 'Amplitude')
         self.fig_time.tight_layout()
         self.canvas_time.draw()
-    
+        self.log("Gráfico Tempo: Renderizado.")
+
     def _plot_psd(self, data):
-        """Plota densidade espectral de potência"""
         self.ax_fft.clear()
         Pxx_db = 10 * np.log10(data['Pxx'] + 1e-12)
-        self.ax_fft.plot(data['f'], Pxx_db, color='#00ff88', linewidth=1.5)
-        self.ax_fft.set_xlabel('Frequência (Hz)', color='white', fontsize=11)
-        self.ax_fft.set_ylabel('PSD (dB/Hz)', color='white', fontsize=11)
-        self.ax_fft.set_title('Densidade Espectral de Potência - Método de Welch (Hanning)', 
-                              color='white', fontsize=13, fontweight='bold')
+        self.ax_fft.fill_between(data['f'], Pxx_db, -200, color='#00ff00', alpha=0.2)
+        self.ax_fft.plot(data['f'], Pxx_db, color='#00ff00', linewidth=1)
         self.ax_fft.set_xlim([0, self.sample_rate/2])
-        self.ax_fft.tick_params(colors='white')
-        self.ax_fft.grid(True, alpha=0.3, color='gray', linestyle='--')
-        self.ax_fft.set_facecolor('#1e1e1e')
+        self.ax_fft.set_ylim([np.max(Pxx_db)-80, np.max(Pxx_db)+5])
+        self._dark_style(self.ax_fft, 'Espectro de Potência (Welch)', 'Frequência (Hz)', 'dB/Hz')
         self.fig_fft.tight_layout()
         self.canvas_fft.draw()
-    
+        self.log("Gráfico PSD: Renderizado.")
+
     def _plot_wavelet(self, data):
-        """Plota espectrograma wavelet (Modo RAW - Idêntico ao Octave imagesc)"""
         self.ax_wavelet.clear()
         
-        # 1. Normalização Relativa (Exatamente como no Octave)
+        # Matemática
         magnitude = np.abs(data['coefs'])
-        max_val = np.max(magnitude)
-        if max_val == 0: max_val = 1e-12
-            
-        magnitude_norm = magnitude / max_val
-        magnitude_db = 20 * np.log10(magnitude_norm + 1e-12)
+        max_val = np.max(magnitude) if np.max(magnitude) > 0 else 1e-12
+        magnitude_db = 20 * np.log10((magnitude / max_val) + 1e-12)
         
-        # 2. Configura a extensão dos eixos
-        extent = [
-            data['freqs'][0], data['freqs'][-1], # Eixo X: Freq
-            data['t'][0], data['t'][-1]          # Eixo Y: Tempo
-        ]
+        extent = [data['freqs'][0], data['freqs'][-1], data['t'][0], data['t'][-1]]
         
-        # 3. PLOTAGEM (O Segredo do Visual)
-        # interpolation='nearest': Isso força o Python a desenhar os pixels "quadrados"
-        # e nítidos, exatamente como o 'imagesc' padrão do Octave.
-        # Removemos o 'bilinear' que estava deixando a imagem borrada.
+        # Renderização Pixel Perfect (Octave Style)
         im = self.ax_wavelet.imshow(
-            magnitude_db.T,
-            aspect='auto',
-            origin='lower',
-            cmap='jet',
-            extent=extent,
-            vmin=-50, vmax=0,       # Contraste travado igual ao Octave
-            interpolation='nearest' # <--- DEIXA NÍTIDO IGUAL AO OCTAVE
+            magnitude_db.T, aspect='auto', origin='lower', cmap='jet',
+            extent=extent, vmin=-50, vmax=0, interpolation='nearest'
         )
         
-        # 4. Configuração dos Eixos
-        self.ax_wavelet.set_xlabel('Frequencia (Hz)', fontsize=11, fontweight='bold')
-        self.ax_wavelet.set_ylabel('Tempo (s)', fontsize=11, fontweight='bold')
-        self.ax_wavelet.set_title('3. Spectroid: ' + os.path.basename(self.audio_path or "Audio"), 
-                                  fontsize=12, fontweight='bold')
+        self._dark_style(self.ax_wavelet, 'Spectrograma Wavelet (Morlet)', 'Frequência (Hz)', 'Tempo (s)')
         
-        # 5. Formatação (Números normais no eixo X)
-        from matplotlib.ticker import ScalarFormatter
+        # Formatação
         self.ax_wavelet.xaxis.set_major_formatter(ScalarFormatter())
         self.ax_wavelet.ticklabel_format(style='plain', axis='x')
 
-        # 6. Colorbar
-        cbar = self.fig_wavelet.colorbar(im, ax=self.ax_wavelet)
-        cbar.set_label('dB', fontsize=10, rotation=0, labelpad=-10, y=1.05)
+        if hasattr(self, 'cbar_wavelet'): self.cbar_wavelet.remove()
         
-        # 7. Ajuste final
+        cbar = self.fig_wavelet.colorbar(im, ax=self.ax_wavelet)
+        cbar.set_label('dB', color='white', rotation=0, labelpad=-10, y=1.05)
+        cbar.ax.yaxis.set_tick_params(color='white')
+        plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+        
         self.fig_wavelet.tight_layout()
         self.canvas_wavelet.draw()
+        self.log("Gráfico Wavelet: Renderizado.")
