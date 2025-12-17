@@ -10,22 +10,22 @@ Ajuste parâmetros aqui sem modificar o código principal
 # ============================================================================
 DSP_CONFIG = {
     # Wavelet CWT
-    'MAX_PIXELS': 3000,              # Resolução temporal máxima (3000 = boa qualidade)
-                                     # Raspberry Pi: use 1500-2000
+    'MAX_PIXELS': 3000,              # Resolução temporal (Mantém a otimização)
     
-    'FREQ_MIN': 50,                  # Frequência mínima da Wavelet (Hz)
-    'FREQ_MAX': 5000,                # Frequência máxima da Wavelet (Hz)
-    'NUM_SCALES': 100,               # Número de escalas de frequência
+    # CORREÇÃO CRÍTICA: O defeito está em 16-19kHz. 
+    # Precisamos ver até pelo menos 22kHz (aprox Fs/2)
+    'FREQ_MIN': 100,                 
+    'FREQ_MAX': 22000,               # Aumentado de 5000 para 22000
+    'NUM_SCALES': 150,               # Aumentado para melhor resolução vertical (igual ao Octave)
+    'SCALE_TYPE': 'linear',          # Nova config para garantir visual igual ao relatório
     
     # PSD Welch
-    'WELCH_NPERSEG': 1024,           # Tamanho da janela FFT
-                                     # 512 = rápido, 2048 = alta resolução
-    
-    'WELCH_OVERLAP_RATIO': 0.5,     # Sobreposição (0.5 = 50%)
+    'WELCH_NPERSEG': 1024,
+    'WELCH_OVERLAP_RATIO': 0.5,
     
     # Geral
-    'NORMALIZATION': True,           # Normalizar áudio para [-1, 1]
-    'STEREO_TO_MONO': True,          # Converter estéreo para mono
+    'NORMALIZATION': True,
+    'STEREO_TO_MONO': True,
 }
 
 

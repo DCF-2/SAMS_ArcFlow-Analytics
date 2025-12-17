@@ -236,8 +236,22 @@ class WeldingMonitorApp(ctk.CTk):
         
         # 3. Wavelet CWT
         print("[INFO] Calculando CWT (Morlet) - isso pode demorar...")
-        freqs = np.logspace(np.log10(50), np.log10(5000), 100)
+        
+        # IMPORTANTE: Carregando configurações do config.py
+        from config import DSP_CONFIG
+        
+        # Lógica para replicar exatamente o visual do Octave (Linear vs Log)
+        if DSP_CONFIG.get('SCALE_TYPE') == 'linear':
+            freqs = np.linspace(DSP_CONFIG['FREQ_MIN'], DSP_CONFIG['FREQ_MAX'], DSP_CONFIG['NUM_SCALES'])
+        else:
+            # Fallback para logarítmico se preferir no futuro
+            freqs = np.logspace(np.log10(DSP_CONFIG['FREQ_MIN']), np.log10(DSP_CONFIG['FREQ_MAX']), DSP_CONFIG['NUM_SCALES'])
+            
         coefs, t_cwt = DSPProcessor.cwt_morlet_otimizada(audio_data, sample_rate, freqs)
+        
+        # Inverter as frequências para o plot ficar Agudo em Cima / Grave em Baixo (padrão Spectrograma)
+        # O pcolormesh do matplotlib desenha de baixo para cima, então ok.
+        
         results['wavelet'] = {'coefs': coefs, 't': t_cwt, 'freqs': freqs}
         
         print("[INFO] Análises concluídas!")
