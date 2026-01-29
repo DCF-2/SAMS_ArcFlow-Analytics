@@ -252,7 +252,9 @@ class WeldingMonitorApp(ctk.CTk):
         audio_filename = Path(video_path).stem + "_audio.wav"
         audio_path = os.path.join(os.path.dirname(video_path), audio_filename)
         
-        video.audio.write_audiofile(audio_path, verbose=False, logger=None)
+        # CORREÇÃO: Removemos 'verbose=False' que causa erro no MoviePy 2.0+
+        # O 'logger=None' já serve para silenciar o output.
+        video.audio.write_audiofile(audio_path, logger=None)
         video.close()
         
         sample_rate, audio_data = wavfile.read(audio_path)
@@ -260,7 +262,8 @@ class WeldingMonitorApp(ctk.CTk):
             audio_data = np.mean(audio_data, axis=1) # Mono
             
         audio_data = audio_data.astype(np.float64)
-        audio_data = audio_data / (np.max(np.abs(audio_data)) + 1e-9) # Normaliza
+        # Normalização segura evitando divisão por zero
+        audio_data = audio_data / (np.max(np.abs(audio_data)) + 1e-9) 
         
         return {'audio_path': audio_path, 'sample_rate': sample_rate, 'audio_data': audio_data}
     
