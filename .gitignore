@@ -48,7 +48,7 @@ __pycache__/
 .Python
 env/
 venv/
-.env
+*.env
 .ipynb_checkpoints/
 
 # =======================================================
@@ -87,11 +87,6 @@ bin/
 *.eep
 
 # Pasta desnecessarias pro git
-.Audios-PGD/
-.Graficos/
-.Grafico-PGD/
-.mp3
-.MP3
-.mp4
-.MP4
-.wav
+Audios-PGD/
+Graficos/
+Grafico-PGD/
