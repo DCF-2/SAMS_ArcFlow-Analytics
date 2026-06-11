@@ -4,7 +4,11 @@ config.py
 Arquivo de Configuração Centralizado
 Ajuste parâmetros aqui sem modificar o código principal
 """
+import os
+from dotenv import load_dotenv
 
+# Carrega as variáveis ocultas do ficheiro .env
+load_dotenv()
 # ============================================================================
 # CONFIGURAÇÕES DE DSP (Processamento Digital de Sinais)
 # ============================================================================
@@ -79,4 +83,14 @@ DEBUG_CONFIG = {
     'VERBOSE': True,                 # Logs detalhados no terminal
     'SAVE_INTERMEDIATE': False,      # Salvar resultados intermediários
     'TIMING': True,                  # Mostrar tempo de execução
+}
+
+# ============================================================================
+# CONFIGURAÇÕES DO AGENTE DE INTELIGÊNCIA ARTIFICIAL (GEMINI API)
+# ============================================================================
+GEMINI_CONFIG = {
+    # Lê a chave do ambiente de forma segura. Se não encontrar, retorna vazio.
+    'API_KEY': os.getenv("GEMINI_API_KEY", ""), 
+    'MODEL_NAME': "gemini-2.5-flash",
+    'TEMPERATURE': 0.2, 
 }

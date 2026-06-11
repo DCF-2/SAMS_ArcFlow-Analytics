@@ -101,8 +101,8 @@ def main():
     Função principal - Ponto de entrada da aplicação
     """
     print("=" * 70)
-    print("  SISTEMA DE MONITORAMENTO DE SOLDAGEM - v2.0")
-    print("  Análise Espectral de Áudio com DSP Avançado")
+    print("  SISTEMA DE MONITORAMENTO DE SOLDAGEM - v4.0")
+    print(" Enterprise Dashboard com Integração de Agente IA Gemini")
     print("=" * 70)
     print()
     
