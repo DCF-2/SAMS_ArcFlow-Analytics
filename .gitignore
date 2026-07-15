@@ -11,6 +11,10 @@ Thumbs.db
 # --- Dados Pesados (NÃO COMMITAR) ---
 *.wav
 *.mp3
+*.mp4
+*.png
+*.jpeg
+*.jpg
 *.raw
 data/raw/
 data/temp/
@@ -87,6 +91,7 @@ bin/
 *.eep
 
 # Pasta desnecessarias pro git
+PGD-INTM-AUDIOS/
 Audios-PGD/
 Graficos/
 Grafico-PGD/
