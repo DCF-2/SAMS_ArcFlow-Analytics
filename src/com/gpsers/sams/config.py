@@ -91,6 +91,6 @@ DEBUG_CONFIG = {
 GEMINI_CONFIG = {
     # Lê a chave do ambiente de forma segura. Se não encontrar, retorna vazio.
     'API_KEY': os.getenv("GEMINI_API_KEY", ""), 
-    'MODEL_NAME': "gemini-2.5-flash",
-    'TEMPERATURE': 0.2, 
+    'MODEL_NAME': "gemini-3.5-flash",
+    'TEMPERATURE': 0.0, 
 }
