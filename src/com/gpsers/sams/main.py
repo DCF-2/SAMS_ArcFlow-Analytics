@@ -71,9 +71,9 @@ def check_project_files():
     import os
     
     required_files = [
-        'dsp_processor.py',
-        'worker_thread.py',
-        'welding_monitor_app.py'
+        os.path.join('core', 'dsp_processor.py'),
+        os.path.join('core', 'worker_thread.py'),
+        os.path.join('ui', 'main_window.py')
     ]
     
     missing = []
@@ -85,24 +85,25 @@ def check_project_files():
         print("\n[ERRO] Arquivos do projeto faltando:")
         for file in missing:
             print(f"  ❌ {file}")
-        print("\nCertifique-se de que todos os arquivos estão no mesmo diretório:")
-        print("  - main.py")
-        print("  - config.py (opcional)")
-        print("  - dsp_processor.py")
-        print("  - worker_thread.py")
-        print("  - welding_monitor_app.py")
+        print("\nCertifique-se de que todos os arquivos estão nos diretórios corretos:")
+        print("  - main.py (raiz)")
+        print("  - utils/config.py (opcional)")
+        print("  - core/dsp_processor.py")
+        print("  - core/worker_thread.py")
+        print("  - ui/main_window.py")
         return False
     
     return True
 
 
+import os
 def main():
     """
     Função principal - Ponto de entrada da aplicação
     """
     print("=" * 70)
-    print("  SISTEMA DE MONITORAMENTO DE SOLDAGEM - v4.0")
-    print(" Enterprise Dashboard com Integração de Agente IA Gemini")
+    print("  SAMS ARCFLOW ANALYTICS - V1.0")
+    print(" Enterprise Dashboard com LLM Local Offline")
     print("=" * 70)
     print()
     
@@ -121,24 +122,26 @@ def main():
     print("\n📦 Carregando módulos...")
     
     try:
-        # Importa módulos do projeto
-        from welding_monitor_app import WeldingMonitorApp
-        print("   ✓ dsp_processor.py")
-        print("   ✓ worker_thread.py")
-        print("   ✓ welding_monitor_app.py")
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+        
+        from ui.main_window import MainWindow
+        
+        print("   ✓ core.dsp_processor")
+        print("   ✓ core.worker_thread")
+        print("   ✓ ui.main_window")
         
         # Verifica se config.py existe (opcional)
         try:
-            import config
-            print("   ✓ config.py (configurações carregadas)")
+            import utils.config as config
+            print("   ✓ utils.config (configurações carregadas)")
         except ImportError:
-            print("   ⚠️  config.py não encontrado (usando configurações padrão)")
+            print("   ⚠️  utils.config não encontrado (usando configurações padrão)")
         
         print("\n🚀 Iniciando aplicação...")
         print()
         
         # Inicializa e executa a aplicação
-        app = WeldingMonitorApp()
+        app = MainWindow()
         app.mainloop()
         
     except ImportError as e:
