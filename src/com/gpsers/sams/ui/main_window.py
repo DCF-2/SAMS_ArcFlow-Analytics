@@ -48,6 +48,8 @@ class MainWindow(ctk.CTk):
         self.processing = False
         self.log_history = []
         
+        self.shared_model_var = ctk.StringVar(value="Llama-3.2-3B-Instruct-Q4_0.gguf")
+        
         self.settings_window = None
         
         self._load_ml_model()
@@ -219,4 +221,9 @@ class MainWindow(ctk.CTk):
         self.ai_panel.set_ml_result(predicao, cor)
         self.workspace_panel.append_dataset_row(name, predicao, features_df)
         self.workspace_panel.update_plots(self.loaded_trials[name], name)
+        
+        # Voz: Fala a predição identificada
+        from utils.voice_engine import speak
+        speak(f"Análise do ensaio concluída. O algoritmo identificou o modo de transferência como: {predicao}.")
+        
         self.processing = False

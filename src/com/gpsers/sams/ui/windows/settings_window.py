@@ -42,11 +42,11 @@ class SettingsWindow(ctk.CTkToplevel):
         # Vamos pegar o modelo atual que está na AIPanel
         current_model = getattr(self.parent.ai_panel, 'current_model_name', "Llama-3.2-3B-Instruct-Q4_0.gguf")
         
-        self.combo_model = ctk.CTkComboBox(
+        self.combo_model = ctk.CTkOptionMenu(
             frame, values=["Llama-3.2-3B-Instruct-Q4_0.gguf", "Phi-3-mini-4k-instruct.Q4_0.gguf"],
+            variable=self.parent.shared_model_var,
             width=250, command=self._on_model_change
         )
-        self.combo_model.set(current_model)
         self.combo_model.grid(row=0, column=1, padx=10, pady=10)
         
         ctk.CTkLabel(self.tab_modelos, text="Nota: A primeira vez que um modelo for selecionado,\no SAMS fará o download (~2GB a 3GB) automaticamente na memória.", text_color="gray").pack(pady=20)

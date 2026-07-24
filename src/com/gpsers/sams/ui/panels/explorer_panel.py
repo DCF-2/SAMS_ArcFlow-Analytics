@@ -2,6 +2,7 @@ import customtkinter as ctk
 from tkinter import filedialog, ttk
 import os
 from pathlib import Path
+from ui.components.tooltip import ToolTip
 
 class ExplorerPanel(ctk.CTkFrame):
     def __init__(self, parent, controller):
@@ -25,6 +26,9 @@ class ExplorerPanel(ctk.CTkFrame):
         # O botão config vai para a parte de baixo (row=5)
         self.btn_config = ctk.CTkButton(self, text="⚙️ Configurações", command=self.controller.open_settings, fg_color="#333333", hover_color="#444444")
         self.btn_config.grid(row=5, column=0, padx=20, pady=(10, 20), sticky="ew")
+        
+        ToolTip(self.btn_open_folder, "Abre a pasta contendo os áudios ou vídeos dos ensaios (.wav, .mp4)")
+        ToolTip(self.btn_config, "Abre o painel de Configurações, Modelos IA e Ajuda")
         
         # Barra de Progresso
         self.frame_prog = ctk.CTkFrame(self, fg_color="transparent")

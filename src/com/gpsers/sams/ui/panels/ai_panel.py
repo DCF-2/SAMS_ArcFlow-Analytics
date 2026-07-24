@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import threading
 from ui.components.tooltip import ToolTip
+from utils.voice_engine import speak
 try:
     from gpt4all import GPT4All
 except ImportError:
@@ -10,6 +11,12 @@ class AIPanel(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent, corner_radius=0, fg_color="#212121", width=420)
         self.controller = controller
+        
+        self.llm_model = None
+        self.cancel_llm = False
+        self.is_thinking = False
+        self.think_dots = 0
+        self.current_response = ""
         
         self.llm_model = None
         self.cancel_llm = False
@@ -26,7 +33,8 @@ class AIPanel(ctk.CTkFrame):
         # Título sem colchetes
         lbl_ai = ctk.CTkLabel(frame_ai_top, text="SAMS IA", font=ctk.CTkFont(size=18, weight="bold"))
         lbl_ai.grid(row=0, column=0, sticky="w")
-        self.current_model_name = "Llama-3.2-3B-Instruct-Q4_0.gguf"
+        
+        # Não precisa mais do self.current_model_name pois usaremos self.controller.shared_model_var
         
         # O combobox foi removido daqui e foi para baixo da caixa de texto
         
@@ -73,10 +81,10 @@ class AIPanel(ctk.CTkFrame):
         ctk.CTkLabel(frame_model, text="✨", font=ctk.CTkFont(size=12), text_color="#F59E0B").pack(side="left")
         self.combo_model = ctk.CTkOptionMenu(
             frame_model, values=["Llama-3.2-3B-Instruct-Q4_0.gguf", "Phi-3-mini-4k-instruct.Q4_0.gguf"],
+            variable=self.controller.shared_model_var,
             width=200, height=20, font=ctk.CTkFont(size=11), fg_color="#2b2b2b", button_color="#2b2b2b", button_hover_color="#333333", text_color="gray", command=self._on_model_change
         )
         self.combo_model.pack(side="left", padx=2)
-        self.combo_model.set(self.current_model_name)
         
         # Right side: Send/Stop Buttons
         self.btn_container = ctk.CTkFrame(frame_bottom_input, fg_color="transparent", width=34, height=34)
@@ -91,9 +99,11 @@ class AIPanel(ctk.CTkFrame):
         
         self.btn_stop = ctk.CTkButton(self.btn_container, text="⏹", font=ctk.CTkFont(size=20), width=34, height=34, corner_radius=0, border_spacing=0, text_color="#d73a49", command=self.stop_llm, fg_color="transparent", hover_color="#333333")
 
+        ToolTip(self.btn_send, "Enviar mensagem para SAMS IA (Enter)")
+        ToolTip(self.btn_stop, "Interromper geração de resposta")
         
         # Inicia modelo padrão
-        self._init_local_llm(self.current_model_name)
+        self._init_local_llm(self.controller.shared_model_var.get())
         
         # Bind do Enter
         self.entry_chat.bind("<Return>", self._on_enter_pressed)
@@ -113,7 +123,6 @@ class AIPanel(ctk.CTkFrame):
         threading.Thread(target=self._load_llm_thread, args=(model_file,), daemon=True).start()
 
     def _load_llm_thread(self, model_file):
-        self.current_model_name = model_file
         self.after(0, lambda: self.btn_send.configure(state="disabled"))
         self.after(0, lambda: self.lbl_ai_status.configure(text=f"Carregando {model_file} (Baixando se for 1º uso)...", text_color="#F59E0B"))
         
@@ -189,18 +198,24 @@ class AIPanel(ctk.CTkFrame):
             pred = self.lbl_ml_result.cget('text')
             
             if f_df is not None:
+                ensaio = self.controller.current_trial_name
                 system_prompt = (
                     "Você é o Assistente SAMS IA, um engenheiro especialista em soldagem MIG/MAG.\n"
-                    f"O usuário está analisando um ensaio cujo diagnóstico matemático apontou: {pred}.\n"
-                    f"Métricas técnicas extraídas da onda de soldagem:\n"
+                    "REGRA CRÍTICA 1: NÃO responda perguntas que não sejam sobre soldagem, engenharia, metalurgia ou os dados deste ensaio. Se o usuário perguntar outra coisa, diga rigidamente que você é focado em soldagem.\n"
+                    "REGRA CRÍTICA 2: Seja suscinto, claro e direto na resposta.\n"
+                    f"O usuário está analisando o ensaio chamado '{ensaio}' cujo diagnóstico de Machine Learning apontou: {pred}.\n"
+                    f"Métricas técnicas extraídas da onda do ensaio:\n"
                     f"- Energia Média: {round(f_df['energia_media'].iloc[0], 2)}\n"
-                    f"- Variância: {round(f_df['variancia_sinal'].iloc[0], 2)}\n"
-                    f"- Taxa Cruzamento Zero: {round(f_df['taxa_cruzamento_zero'].iloc[0], 2)}\n"
-                    f"- Frequência de Pico: {round(f_df['frequencia_pico_hz'].iloc[0], 2)} Hz.\n"
-                    "DICA: Ao responder, aja naturalmente como se estivesse observando os gráficos e os resultados. Responda de forma sucinta e direta a pergunta do usuário baseando-se apenas na teoria de soldagem aplicável a esses dados. Não mencione frases esquisitas como 'análise oculta' ou 'dados secretos'."
+                    f"- Variância (Estabilidade): {round(f_df['variancia_sinal'].iloc[0], 2)}\n"
+                    f"- Taxa Cruzamento Zero (Curtos-Circuitos): {round(f_df['taxa_cruzamento_zero'].iloc[0], 2)}\n"
+                    f"- Frequência de Pico Dominante: {round(f_df['frequencia_pico_hz'].iloc[0], 2)} Hz.\n"
+                    "DICA: Ao responder, aja naturalmente, cite os números acima se necessário para justificar sua explicação sobre os gráficos. Não mencione ser uma IA ou usar 'dados ocultos'."
                 )
             else:
-                system_prompt = "Você é o SAMS IA, um especialista em soldagem. Responda à pergunta do usuário."
+                system_prompt = (
+                    "Você é o SAMS IA, um especialista em engenharia de soldagem.\n"
+                    "REGRA CRÍTICA 1: NÃO responda perguntas fora da área de soldagem, engenharia ou indústria. Seja direto e profissional."
+                )
 
             # Prompt simples, sem formatações confusas que causam alucinação
             prompt = f"{system_prompt}\n\nUsuário: {message}\nSAMS IA: "
@@ -213,13 +228,19 @@ class AIPanel(ctk.CTkFrame):
             self.after(0, lambda: self.lbl_ai_status.configure(text="Gerando...", text_color="#F59E0B"))
 
             # Stream response
-            for token in self.llm_model.generate(prompt, streaming=True, max_tokens=300):
+            self.current_response = ""
+            for token in self.llm_model.generate(prompt, streaming=True, max_tokens=1500):
                 if self.cancel_llm: break
                 self.after(0, lambda t=token: self._stream_token(t))
+                self.current_response += token
             
             self.after(0, lambda: self._stream_token("\n\n"))
             self.after(0, lambda: self.txt_chat.configure(state="disabled"))
             self.after(0, lambda: self.lbl_ai_status.configure(text="Pronto.", text_color="gray"))
+            
+            # Falar a resposta completa ao terminar de gerar
+            if not self.cancel_llm and self.current_response:
+                speak(self.current_response)
 
         except Exception as e:
             if not self.cancel_llm:
