@@ -13,10 +13,12 @@ class AIPanel(ctk.CTkFrame):
         self.controller = controller
         
         self.llm_model = None
+        self.llm_model = None
         self.cancel_llm = False
         self.is_thinking = False
         self.think_dots = 0
         self.current_response = ""
+        self.chat_history = []
         
         self.llm_model = None
         self.cancel_llm = False
@@ -30,8 +32,17 @@ class AIPanel(ctk.CTkFrame):
         frame_ai_top.grid(row=0, column=0, sticky="ew", padx=15, pady=15)
         frame_ai_top.grid_columnconfigure(1, weight=1)
         
-        # Título sem colchetes
-        lbl_ai = ctk.CTkLabel(frame_ai_top, text="SAMS IA", font=ctk.CTkFont(size=18, weight="bold"))
+        # Carregando Icone IA
+        from pathlib import Path
+        from PIL import Image
+        icons_dir = Path(__file__).parent.parent.parent / 'assets' / 'icons'
+        icon_ia = None
+        try:
+            icon_ia = ctk.CTkImage(Image.open(icons_dir / "inteligencia-artificial.png"), size=(24, 24))
+        except: pass
+        
+        # Título
+        lbl_ai = ctk.CTkLabel(frame_ai_top, text=" SAMS IA", image=icon_ia, compound="left", font=ctk.CTkFont(size=18, weight="bold"))
         lbl_ai.grid(row=0, column=0, sticky="w")
         
         # Não precisa mais do self.current_model_name pois usaremos self.controller.shared_model_var
@@ -171,6 +182,8 @@ class AIPanel(ctk.CTkFrame):
         self.entry_chat.delete("1.0", "end")
         self._append_to_chat("VOCÊ", user_msg)
         
+        self.chat_history.append({"role": "user", "content": user_msg})
+        
         self.btn_send.grid_forget()
         self.btn_stop.grid(row=0, column=0, sticky="nsew")
         self.cancel_llm = False
@@ -217,8 +230,12 @@ class AIPanel(ctk.CTkFrame):
                     "REGRA CRÍTICA 1: NÃO responda perguntas fora da área de soldagem, engenharia ou indústria. Seja direto e profissional."
                 )
 
-            # Prompt simples, sem formatações confusas que causam alucinação
-            prompt = f"{system_prompt}\n\nUsuário: {message}\nSAMS IA: "
+            # Constrói o Prompt com as últimas interações
+            prompt = f"{system_prompt}\n\n"
+            for msg in self.chat_history[-5:]: # Mantem 5 ultimas mensagens
+                role = "Usuário" if msg["role"] == "user" else "SAMS IA"
+                prompt += f"{role}: {msg['content']}\n"
+            prompt += "SAMS IA: "
             
             self.after(0, lambda: self.txt_chat.configure(state="normal"))
             self.after(0, lambda: self.txt_chat.insert("end", "SAMS IA\n", "ai_label"))
@@ -229,10 +246,19 @@ class AIPanel(ctk.CTkFrame):
 
             # Stream response
             self.current_response = ""
-            for token in self.llm_model.generate(prompt, streaming=True, max_tokens=1500):
+            for token in self.llm_model.generate(prompt, streaming=True, max_tokens=1500, temp=0.7):
                 if self.cancel_llm: break
-                self.after(0, lambda t=token: self._stream_token(t))
+                
                 self.current_response += token
+                
+                # Trava Manual (Stop Token) para evitar Alucinações de auto-pergunta
+                if "Usuário:" in self.current_response or "\nUsuário" in self.current_response or "Usuária:" in self.current_response:
+                    self.current_response = self.current_response.replace("Usuário:", "").replace("\nUsuário", "").replace("Usuária:", "")
+                    break
+                    
+                self.after(0, lambda t=token: self._stream_token(t))
+                
+            self.chat_history.append({"role": "assistant", "content": self.current_response.strip()})
             
             self.after(0, lambda: self._stream_token("\n\n"))
             self.after(0, lambda: self.txt_chat.configure(state="disabled"))

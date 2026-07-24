@@ -13,6 +13,7 @@ class VoiceEngine:
         return cls._instance
 
     def _init_engine(self):
+        self.enabled = True
         self.q = queue.Queue()
         self.thread = threading.Thread(target=self._worker, daemon=True)
         self.thread.start()
@@ -49,7 +50,8 @@ class VoiceEngine:
 
     def speak(self, text):
         """Adiciona um texto à fila para ser falado"""
-        self.q.put(text)
+        if self.enabled:
+            self.q.put(text)
         
     def stop(self):
         """Tenta interromper a fala limpando a fila"""

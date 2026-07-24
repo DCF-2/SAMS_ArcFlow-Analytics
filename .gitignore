@@ -12,9 +12,6 @@ Thumbs.db
 *.wav
 *.mp3
 *.mp4
-*.png
-*.jpeg
-*.jpg
 *.raw
 data/raw/
 data/temp/
@@ -95,3 +92,7 @@ PGD-INTM-AUDIOS/
 Audios-PGD/
 Graficos/
 Grafico-PGD/
+sams_cache/
+session.json
+memory_dumps/
+src/com/gpsers/sams/data/

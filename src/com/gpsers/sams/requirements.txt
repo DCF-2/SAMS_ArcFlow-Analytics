@@ -15,8 +15,9 @@ customtkinter>=5.2.0
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Processamento de Vídeo
+# Processamento de Vídeo e Áudio
 moviepy>=2.0.0  
+pygame>=2.6.0
 
 # Gemmini API
 google-genai>=0.1.0

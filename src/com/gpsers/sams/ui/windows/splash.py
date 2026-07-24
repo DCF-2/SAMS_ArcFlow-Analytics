@@ -22,7 +22,7 @@ class SplashScreen(ctk.CTkToplevel):
         from pathlib import Path
         from PIL import Image
         assets_dir = Path(__file__).parent.parent.parent / 'assets'
-        logo_path = assets_dir / "SAMS.png"
+        logo_path = assets_dir / "img" / "SAMS.png"
         
         if logo_path.exists():
             self.img_sams = ctk.CTkImage(light_image=Image.open(logo_path), dark_image=Image.open(logo_path), size=(180, 70))
@@ -63,3 +63,5 @@ class SplashScreen(ctk.CTkToplevel):
     def _finish(self):
         self.destroy()
         self.parent.deiconify() # Shows the main window
+        try: self.parent.state('zoomed')
+        except: pass
