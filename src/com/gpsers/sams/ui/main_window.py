@@ -189,15 +189,17 @@ class MainWindow(ctk.CTk):
         toast.attributes("-topmost", True)
         toast.configure(fg_color="#1E1E1E")
         
-        lbl = ctk.CTkLabel(toast, text=f"🔔 {message}", font=ctk.CTkFont(size=14, weight="bold"), text_color="#10B981")
+        lbl = ctk.CTkLabel(toast, text=f"🔔 {message}", font=ctk.CTkFont(size=14, weight="bold"), text_color="#10B981", wraplength=250, justify="left")
         lbl.pack(padx=20, pady=10)
         
         self.update_idletasks()
-        w = toast.winfo_width()
-        h = toast.winfo_height()
+        toast.update_idletasks()
+        
+        w = toast.winfo_reqwidth()
+        h = toast.winfo_reqheight()
         x = self.winfo_rootx() + self.winfo_width() - w - 20
         y = self.winfo_rooty() + self.winfo_height() - h - 20
-        toast.geometry(f"+{x}+{y}")
+        toast.geometry(f"{w}x{h}+{x}+{y}")
         
         self.after(3000, toast.destroy)
     # =========================================================================

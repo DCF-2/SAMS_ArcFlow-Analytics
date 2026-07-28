@@ -23,8 +23,12 @@ class WorkspacePanel(ctk.CTkFrame):
         
         try:
             pygame.mixer.init()
+            self.has_audio = True
         except Exception as e:
             print(f"Erro ao inicializar PyGame Mixer: {e}")
+            self.has_audio = False
+            
+        self.audio_warned = False
         
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -177,7 +181,7 @@ class WorkspacePanel(ctk.CTkFrame):
             else:
                 pos = getattr(self, 'current_audio_time', 0)
             
-            if self.playing:
+            if self.playing and getattr(self, 'has_audio', False):
                 pygame.mixer.music.load(self.audio_path)
                 pygame.mixer.music.play(start=pos)
         except Exception as e:
@@ -261,28 +265,38 @@ class WorkspacePanel(ctk.CTkFrame):
             total_time = len(self.video_frames) / self.fps
             self.lbl_time.configure(text=f"00:00 / {int(total_time//60):02d}:{int(total_time%60):02d}")
 
-    def toggle_playback(self):
-        if self.playing:
-            self.playing = False
-            self.btn_play_pause.configure(text="▶ Play")
-            self.show_osd("⏸")
+    def pause_video(self):
+        if self.is_loading: return
+        self.playing = False
+        self.btn_play_pause.configure(text="▶ Play")
+        self.show_osd("⏸")
+        if self.audio_path and getattr(self, 'has_audio', False):
             try: pygame.mixer.music.pause()
             except: pass
+
+    def toggle_playback(self):
+        if self.playing:
+            self.pause_video()
         else:
             self.playing = True
             self.btn_play_pause.configure(text="⏸ Pause")
             self.show_osd("▶")
             
             if self.audio_path and os.path.exists(self.audio_path):
-                try:
-                    if not pygame.mixer.music.get_busy():
-                        pos = self.current_frame_idx / self.fps if self.video_frames else getattr(self, 'current_audio_time', 0)
-                        pygame.mixer.music.load(self.audio_path)
-                        pygame.mixer.music.play(start=pos)
-                    else:
-                        pygame.mixer.music.unpause()
-                except Exception as e:
-                    print(f"Erro ao tocar audio: {e}")
+                if getattr(self, 'has_audio', False):
+                    try:
+                        if not pygame.mixer.music.get_busy():
+                            pos = self.current_frame_idx / self.fps if self.video_frames else getattr(self, 'current_audio_time', 0)
+                            pygame.mixer.music.load(self.audio_path)
+                            pygame.mixer.music.play(start=pos)
+                        else:
+                            pygame.mixer.music.unpause()
+                    except Exception as e:
+                        print(f"Erro ao tocar audio: {e}")
+                else:
+                    if not getattr(self, 'audio_warned', False):
+                        self.controller.show_toast("Modo Silencioso: Dispositivo de áudio não detectado.")
+                        self.audio_warned = True
                 
             if self.video_frames:
                 self.playback_thread = threading.Thread(target=self._play_loop, daemon=True)

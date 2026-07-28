@@ -38,7 +38,7 @@ class ToolTip(object):
             # Estilo escuro moderno para combinar com o SAMS
             label = tk.Label(self.tw, text=self.text, justify='left',
                            background="#2b2b2b", relief='solid', borderwidth=1,
-                           font=("Segoe UI", 10, "normal"), fg="#E6EDF3")
+                           font=("Segoe UI", 10, "normal"), fg="#E6EDF3", wraplength=300)
             label.pack(ipadx=6, ipady=4)
         except Exception:
             pass
