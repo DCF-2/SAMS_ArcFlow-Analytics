@@ -74,8 +74,41 @@ class WorkspacePanel(ctk.CTkFrame):
         self.controls_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
         self.controls_frame.grid_propagate(False)
         
-        self.btn_play_pause = ctk.CTkButton(self.controls_frame, text="▶ Play", command=self.toggle_playback, width=80)
-        self.btn_play_pause.pack(side="left")
+        icons_dir = Path(__file__).parent.parent.parent / 'assets' / 'icons'
+        # Ícones do Player
+        try:
+            pil_play = Image.open(icons_dir / "botao-play.png").convert("RGBA")
+            self.icon_play = ctk.CTkImage(light_image=pil_play, dark_image=pil_play, size=(24, 24))
+            
+            # Gerar icone de Pause dinamicamente
+            pil_pause = Image.new('RGBA', (24, 24), (255, 255, 255, 0))
+            from PIL import ImageDraw
+            d = ImageDraw.Draw(pil_pause)
+            d.rectangle([6, 4, 10, 20], fill=(255, 255, 255, 255))
+            d.rectangle([14, 4, 18, 20], fill=(255, 255, 255, 255))
+            self.icon_pause = ctk.CTkImage(light_image=pil_pause, dark_image=pil_pause, size=(24, 24))
+            
+            if (icons_dir / "frente.png").exists():
+                pil_fwd = Image.open(icons_dir / "frente.png").convert("RGBA")
+                self.icon_fwd = ctk.CTkImage(light_image=pil_fwd, dark_image=pil_fwd, size=(24, 24))
+                pil_back = pil_fwd.transpose(Image.FLIP_LEFT_RIGHT)
+                self.icon_back = ctk.CTkImage(light_image=pil_back, dark_image=pil_back, size=(24, 24))
+            else:
+                self.icon_fwd = None
+                self.icon_back = None
+        except Exception as e:
+            print("Erro ao carregar icones:", e)
+            self.icon_play = self.icon_pause = self.icon_fwd = self.icon_back = None
+
+        
+        self.btn_skip_back = ctk.CTkButton(self.controls_frame, text="", image=self.icon_back, command=lambda: self.scrub_relative(-5), width=30, fg_color="transparent", hover_color="#333333")
+        self.btn_skip_back.pack(side="left", padx=(5, 2))
+        
+        self.btn_play_pause = ctk.CTkButton(self.controls_frame, text="", image=self.icon_play, command=self.toggle_playback, width=40, fg_color="transparent", hover_color="#333333")
+        self.btn_play_pause.pack(side="left", padx=2)
+        
+        self.btn_skip_fwd = ctk.CTkButton(self.controls_frame, text="", image=self.icon_fwd, command=lambda: self.scrub_relative(5), width=30, fg_color="transparent", hover_color="#333333")
+        self.btn_skip_fwd.pack(side="left", padx=(2, 5))
         
         self.lbl_time = ctk.CTkLabel(self.controls_frame, text="00:00 / 00:00", text_color="#A0A0A0")
         self.lbl_time.pack(side="left", padx=15)
@@ -140,10 +173,10 @@ class WorkspacePanel(ctk.CTkFrame):
             self.controller.attributes("-fullscreen", False)
             self.is_fullscreen = False
 
-    def show_osd(self, text):
-        self.osd_lbl.configure(text=text)
+    def show_osd(self, icon_img):
+        self.osd_lbl.configure(image=icon_img, text="")
         self.osd_lbl.lift()
-        self.after(600, lambda: self.osd_lbl.configure(text=""))
+        self.after(600, lambda: self.osd_lbl.configure(image=""))
 
     def on_video_click(self, event):
         self.after(250, self._handle_single_click)
@@ -157,11 +190,11 @@ class WorkspacePanel(ctk.CTkFrame):
         self.double_clicked = True
         if self.video_frames:
             self.current_frame_idx = min(len(self.video_frames) - 1, self.current_frame_idx + int(5 * self.fps))
-            self.show_osd("▶▶ +5s")
+            self.show_osd(self.icon_fwd)
             self._sync_audio()
         elif getattr(self, 'audio_duration', 0) > 0:
             self.current_audio_time = min(self.audio_duration, getattr(self, 'current_audio_time', 0) + 5.0)
-            self.show_osd("▶▶ +5s")
+            self.show_osd(self.icon_fwd)
             self._sync_audio()
 
     def on_scrub(self, value):
@@ -259,7 +292,7 @@ class WorkspacePanel(ctk.CTkFrame):
     def _on_frames_loaded(self):
         self.is_loading = False
         self.video_lbl.configure(text="")
-        self.btn_play_pause.configure(state="normal", text="▶ Play")
+        self.btn_play_pause.configure(state="normal", image=self.icon_play)
         if self.video_frames:
             self.video_lbl.configure(image=self.video_frames[0])
             total_time = len(self.video_frames) / self.fps
@@ -268,8 +301,8 @@ class WorkspacePanel(ctk.CTkFrame):
     def pause_video(self):
         if self.is_loading: return
         self.playing = False
-        self.btn_play_pause.configure(text="▶ Play")
-        self.show_osd("⏸")
+        self.btn_play_pause.configure(image=self.icon_play)
+        self.show_osd(self.icon_pause)
         if self.audio_path and getattr(self, 'has_audio', False):
             try: pygame.mixer.music.pause()
             except: pass
@@ -279,8 +312,8 @@ class WorkspacePanel(ctk.CTkFrame):
             self.pause_video()
         else:
             self.playing = True
-            self.btn_play_pause.configure(text="⏸ Pause")
-            self.show_osd("▶")
+            self.btn_play_pause.configure(image=self.icon_pause)
+            self.show_osd(self.icon_play)
             
             if self.audio_path and os.path.exists(self.audio_path):
                 if getattr(self, 'has_audio', False):
@@ -324,7 +357,7 @@ class WorkspacePanel(ctk.CTkFrame):
             self.playing = False
             self.current_audio_time = 0.0
             self.scrubber.set(0)
-            self.after(0, lambda: self.btn_play_pause.configure(text="▶ Play"))
+            self.after(0, lambda: self.btn_play_pause.configure(image=self.icon_play))
 
     def _play_loop(self):
         while self.playing and self.current_frame_idx < len(self.video_frames):
@@ -353,7 +386,7 @@ class WorkspacePanel(ctk.CTkFrame):
             self.playing = False
             self.current_frame_idx = 0
             self.scrubber.set(0)
-            self.after(0, lambda: self.btn_play_pause.configure(text="▶ Play"))
+            self.after(0, lambda: self.btn_play_pause.configure(image=self.icon_play))
 
     def stop_video(self):
         self.is_loading = False
