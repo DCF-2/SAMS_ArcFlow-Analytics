@@ -10,6 +10,7 @@
 
 # GUI Moderna (Dark Mode)
 customtkinter>=5.2.0
+Pillow>=10.0.0
 
 # Computação Científica e DSP
 numpy>=1.24.0
