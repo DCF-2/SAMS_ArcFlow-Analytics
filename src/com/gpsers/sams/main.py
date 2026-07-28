@@ -125,10 +125,12 @@ def main():
         sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
         
         from ui.main_window import MainWindow
+        from utils.logger import setup_logger
         
         print("   ✓ core.dsp_processor")
         print("   ✓ core.worker_thread")
         print("   ✓ ui.main_window")
+        print("   ✓ utils.logger")
         
         # Verifica se config.py existe (opcional)
         try:
@@ -140,8 +142,13 @@ def main():
         print("\n🚀 Iniciando aplicação...")
         print()
         
-        # Inicializa e executa a aplicação
+        # Inicializa a GUI sem logger primeiro
         app = MainWindow()
+        
+        # Injeta o logger agora que a app (janela) existe para plugar no GUI
+        app.logger = setup_logger(app)
+        app.logger.info("SAMS ArcFlow Analytics V1.0 Iniciado.", extra={'gui_level': 'SUCCESS'})
+        
         app.mainloop()
         
     except ImportError as e:

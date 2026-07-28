@@ -68,6 +68,7 @@ class AIPanel(ctk.CTkFrame):
         self.txt_chat.tag_config("ai_label", justify="left", foreground="#10B981")
         self.txt_chat.tag_config("ai_text", justify="left", foreground="#FFFFFF")
         self.txt_chat.tag_config("system", justify="center", foreground="#F59E0B")
+        self.txt_chat.tag_config("error_msg", justify="left", foreground="#EF4444")
         
         self.txt_chat.insert("end", "Bem vindo ao SAMS ArcFlow Analytics.\nSelecione um ensaio no Explorer e me pergunte qualquer coisa.\n\n", "system")
         self.txt_chat.configure(state="disabled")
@@ -270,7 +271,13 @@ class AIPanel(ctk.CTkFrame):
 
         except Exception as e:
             if not self.cancel_llm:
-                self.after(0, lambda err=str(e): self._append_to_chat("ERRO IA", err))
+                def show_ai_error():
+                    self.txt_chat.configure(state="normal")
+                    self.txt_chat.insert("end", f"\n⚠️ Falha no LLM Local:\n{str(e)}\n", "error_msg")
+                    self.txt_chat.configure(state="disabled")
+                    self.txt_chat.see("end")
+                    self.lbl_ai_status.configure(text="Erro.", text_color="#EF4444")
+                self.after(0, show_ai_error)
         finally:
             self.is_thinking = False
             self.after(0, lambda: self.btn_stop.grid_forget())

@@ -225,14 +225,23 @@ class SettingsWindow(ctk.CTkToplevel):
         acc = AccordionItem(self.scroll, title="Logs do Sistema", icon_path=icons_dir / "arquivo-de-log.png")
         acc.pack(fill="x", pady=5)
         
-        self.console = ctk.CTkTextbox(acc.content_frame, height=150, font=("Consolas", 11), text_color="#00ff00", fg_color="#1a1a1a")
+        self.console = ctk.CTkTextbox(acc.content_frame, height=150, font=("Consolas", 11), fg_color="#1a1a1a")
         self.console.pack(fill="x", pady=5)
+        
+        # Configuracao de Cores no Terminal
+        self.console.tag_config("tag_error", foreground="#EF4444")
+        self.console.tag_config("tag_warning", foreground="#F59E0B")
+        self.console.tag_config("tag_success", foreground="#10B981")
+        self.console.tag_config("tag_info", foreground="#E5E7EB")
+        self.console.tag_config("tag_debug", foreground="#9CA3AF")
+        self.console.tag_config("tag_external", foreground="#60A5FA") # Azul para libs de fora
+        
         self.console.configure(state="disabled")
         
         if hasattr(self.parent, 'log_history'):
             self.console.configure(state="normal")
-            for msg in self.parent.log_history:
-                self.console.insert("end", msg + "\n")
+            for level, msg in self.parent.log_history:
+                self.append_log(level, msg, auto_update=False)
             self.console.see("end")
             self.console.configure(state="disabled")
 
@@ -297,13 +306,23 @@ class SettingsWindow(ctk.CTkToplevel):
     def _on_notif_toggle(self):
         self.parent.notifications_enabled = bool(self.switch_notif.get())
 
-    def append_log(self, message):
+    def append_log(self, level, message, auto_update=True):
+        import datetime
         t = datetime.datetime.now().strftime("%H:%M:%S")
         formatted = f"[{t}] {message}"
+        
+        tag = "tag_info"
+        if level == "ERROR": tag = "tag_error"
+        elif level == "WARNING": tag = "tag_warning"
+        elif level == "SUCCESS": tag = "tag_success"
+        elif level == "DEBUG": tag = "tag_debug"
+        elif level == "EXTERNAL": tag = "tag_external"
+        
         try:
             self.console.configure(state="normal")
-            self.console.insert("end", formatted + "\n")
-            self.console.see("end")
+            self.console.insert("end", formatted + "\n", tag)
+            if auto_update:
+                self.console.see("end")
             self.console.configure(state="disabled")
         except: pass
         return formatted

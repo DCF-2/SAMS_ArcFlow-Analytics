@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from scipy.io import wavfile
 import concurrent.futures
+from ui.components.error_window import show_error
 try:
     from moviepy.editor import VideoFileClip
 except ImportError:
@@ -96,7 +97,6 @@ class MainWindow(ctk.CTk):
         self.paned_main.add(self.workspace_panel, weight=1)
         self.paned_main.add(self.ai_panel, weight=0)
         
-        self.log("SAMS ArcFlow Analytics V1.0 Iniciado.")
         self.load_session()
         
         # Splash Screen
@@ -115,13 +115,13 @@ class MainWindow(ctk.CTk):
         except Exception as e:
             self.log(f"ERRO ML: {e}")
 
-    def log(self, message):
-        print(f"[ LOG ] {message}")
-        if self.settings_window and self.settings_window.winfo_exists():
-            formatted = self.settings_window.append_log(message)
-            self.log_history.append(formatted)
-        else:
-            self.log_history.append(f"[CACHE] {message}")
+    def log(self, message, level="INFO"):
+        if not hasattr(self, 'logger'): return
+        if level == "INFO": self.logger.info(message)
+        elif level == "WARNING": self.logger.warning(message)
+        elif level == "ERROR": self.logger.error(message)
+        elif level == "SUCCESS": self.logger.info(message, extra={'gui_level': 'SUCCESS'})
+        elif level == "DEBUG": self.logger.debug(message)
 
     def open_settings(self):
         if self.settings_window is None or not self.settings_window.winfo_exists():
@@ -412,11 +412,14 @@ class MainWindow(ctk.CTk):
             self.after(0, lambda: self._update_prog(1.0, "Pronto!"))
             self.after(0, lambda: self._update_ui_after_process(name, features_df, predicao))
         except Exception as e:
-            self.after(0, lambda: self.log(f"ERRO: {e}"))
-            self.after(0, lambda: self.ai_panel.set_ml_result("Erro DSP", "red"))
-            self.after(0, lambda: self._update_prog(0, "Falhou."))
-            self.processing = False
-            self.after(0, lambda: self.explorer_panel.finish_loading_animation(False))
+            def on_error():
+                self.log(f"ERRO: {e}", "ERROR")
+                self.ai_panel.set_ml_result("Erro DSP", "red")
+                self._update_prog(0, "Falhou.")
+                self.processing = False
+                self.explorer_panel.finish_loading_animation(False)
+                show_error(self, "Erro de Processamento", f"Ocorreu um erro ao processar os dados do arquivo.\n\nDetalhes: {e}")
+            self.after(0, on_error)
 
     def _update_prog(self, val, text):
         self.explorer_panel.prog_bar.set(val)

@@ -25,7 +25,11 @@ class SplashScreen(ctk.CTkToplevel):
         logo_path = assets_dir / "img" / "SAMS.png"
         
         if logo_path.exists():
-            self.img_sams = ctk.CTkImage(light_image=Image.open(logo_path), dark_image=Image.open(logo_path), size=(180, 70))
+            pil_img = Image.open(logo_path)
+            orig_w, orig_h = pil_img.size
+            target_h = 100
+            target_w = int(orig_w * (target_h / orig_h))
+            self.img_sams = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(target_w, target_h))
             self.lbl_title = ctk.CTkLabel(self, text="", image=self.img_sams)
         else:
             self.lbl_title = ctk.CTkLabel(self, text="SAMS", font=ctk.CTkFont(size=64, weight="bold"), text_color="#10B981")

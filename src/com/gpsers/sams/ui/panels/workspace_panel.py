@@ -6,6 +6,7 @@ import threading
 import time
 import wave
 import pygame
+from ui.components.error_window import show_error
 
 try:
     from moviepy.editor import VideoFileClip
@@ -41,14 +42,14 @@ class WorkspacePanel(ctk.CTkFrame):
         # ==========================================
         icons_dir = Path(__file__).parent.parent.parent / 'assets' / 'img'
         try:
-            pil_logo = Image.open(icons_dir / "SAMS.png").convert("RGBA")
+            pil_logo = Image.open(icons_dir / "Logo - SAMS.png").convert("RGBA")
             orig_w, orig_h = pil_logo.size
-            target_h = 250
+            target_h = 450
             target_w = int(orig_w * (target_h / orig_h))
             
             logo_img = pil_logo.resize((target_w, target_h), Image.LANCZOS)
-            # Aplica 80% de transparencia (alpha = 50 de 255)
-            logo_img.putalpha(50)
+            # Aplica 25% de opacidade (alpha = 64 de 255)
+            logo_img.putalpha(64)
             self.welcome_image = ctk.CTkImage(light_image=logo_img, dark_image=logo_img, size=(target_w, target_h))
         except:
             self.welcome_image = None
@@ -245,7 +246,11 @@ class WorkspacePanel(ctk.CTkFrame):
                 
             self.after(0, self._on_frames_loaded)
         except Exception as e:
-            self.after(0, lambda err=e: self.video_lbl.configure(text=f"Erro ao carregar mídia: {err}", image=None))
+            def on_error():
+                self.is_loading = False
+                self.video_lbl.configure(text=f"Erro ao carregar mídia:\nFormato inválido ou corrompido.", image=self.welcome_image)
+                show_error(self.winfo_toplevel(), "Erro de Mídia", f"Não foi possível extrair os frames do vídeo.\n\nDetalhes: {e}")
+            self.after(0, on_error)
 
     def _on_frames_loaded(self):
         self.is_loading = False
